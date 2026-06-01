@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>价格计算器</title>
+<style>
+  :root {
+    --line: #d7dee8;
+    --text: #1b2430;
+    --muted: #657386;
+    --panel: #ffffff;
+    --soft: #f5f7fa;
+    --accent: #2367d1;
+    --accent-soft: #eaf2ff;
+    --danger: #c43b32;
+    --shadow: 0 12px 28px rgba(30, 42, 62, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #eef2f7;
+    color: var(--text);
+    font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+
+  button, input {
+    font: inherit;
+  }
+
+  button {
+    border: 0;
+    cursor: pointer;
+  }
+
+  #app {
+    min-height: 100vh;
+  }
+
+  .app-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 18px 18px 112px;
+  }
+
+  .top-bar {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .search-box {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0 14px;
+    background: #fff;
+    color: var(--text);
+    outline: none;
+  }
+
+  .search-box:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(35, 103, 209, 0.14);
+  }
+
+  .action-btn {
+    min-height: 44px;
+    border-radius: 8px;
+    padding: 0 16px;
+    color: #fff;
+    background: var(--accent);
+    white-space: nowrap;
+  }
+
+  .action-btn.secondary {
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--line);
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .category-panel {
+    position: sticky;
+    top: 18px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .category-btn {
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--line);
+    color: var(--text);
+    background: #fff;
+    text-align: left;
+  }
+
+  .category-btn:last-child {
+    border-bottom: 0;
+  }
+
+  .category-btn.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 700;
+  }
+
+  .desktop-list {
+    display: grid;
+    gap: 14px;
+  }
+
+  .category-section {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .category-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--soft);
+    font-weight: 700;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+
+  th {
+    color: var(--muted);
+    background: #fbfcfe;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .price-col, .qty-col, .subtotal-col {
+    width: 150px;
+  }
+
+  .subtotal-col {
+    text-align: right;
+  }
+
+  .qty-control {
+    display: inline-grid;
+    grid-template-columns: 34px 44px 34px;
+    align-items: center;
+    overflow: hidden;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .qty-control button {
+    height: 34px;
+    color: var(--accent);
+    background: #fff;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .qty-control button:disabled {
+    color: #b5bfcc;
+    cursor: default;
+  }
+
+  .qty-control span {
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    height: 34px;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    font-weight: 700;
+  }
+
+  .mobile-layout {
+    display: none;
+  }
+
+  .summary-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .summary-inner {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 16px;
+    align-items: center;
+    max-width: 1180px;
+    min-height: 78px;
+    margin: 0 auto;
+    padding: 10px 18px;
+  }
+
+  .summary-main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    align-items: baseline;
+  }
+
+  .summary-total {
+    font-size: 26px;
+    font-weight: 800;
+  }
+
+  .summary-tax {
+    color: var(--muted);
+  }
+
+  .receipt {
+    max-width: 760px;
+    margin: 20px auto 110px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .receipt-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--soft);
+  }
+
+  .receipt-title {
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .receipt-body {
+    padding: 12px 16px 18px;
+  }
+
+  .receipt-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .receipt-row:last-child {
+    border-bottom: 0;
+  }
+
+  .empty-state {
+    padding: 36px 18px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    body {
+      background: #fff;
+    }
+
+    .app-shell {
+      padding: 0 0 96px;
+    }
+
+    .top-bar {
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 10px;
+      margin: 0;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .top-bar .action-btn.secondary {
+      display: none;
+    }
+
+    .search-box {
+      min-height: 40px;
+      border-radius: 8px;
+    }
+
+    .action-btn {
+      min-height: 40px;
+      padding: 0 12px;
+      border-radius: 8px;
+    }
+
+    .content-grid {
+      display: none;
+    }
+
+    .mobile-layout {
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      min-height: calc(100vh - 57px - 96px);
+      background: #fff;
+    }
+
+    .mobile-tabs {
+      border-right: 1px solid var(--line);
+      background: #f6f8fb;
+    }
+
+    .mobile-tab {
+      width: 100%;
+      min-height: 58px;
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--line);
+      color: var(--text);
+      background: transparent;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .mobile-tab.active {
+      color: var(--accent);
+      background: #fff;
+      font-weight: 800;
+    }
+
+    .mobile-items {
+      min-width: 0;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .mobile-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mobile-item:last-child {
+      border-bottom: 0;
+    }
+
+    .item-name {
+      overflow-wrap: anywhere;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .item-price {
+      margin-top: 5px;
+      color: var(--danger);
+      font-weight: 800;
+    }
+
+    .summary-inner {
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      min-height: 76px;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .summary-main {
+      display: block;
+      min-width: 0;
+    }
+
+    .summary-total {
+      display: block;
+      font-size: 23px;
+      line-height: 1.15;
+    }
+
+    .summary-tax {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+    }
+
+    .summary-inner .action-btn.secondary {
+      display: none;
+    }
+
+    .receipt {
+      margin: 10px 10px 96px;
+    }
+
+    .receipt-head {
+      padding: 12px;
+    }
+
+    .receipt-body {
+      padding: 8px 12px 14px;
+    }
+
+    .receipt-row {
+      grid-template-columns: 1fr auto;
+    }
+
+    .receipt-row span:last-child {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      text-align: right;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const TAX_RATE = 0.13;
+
+const categories = {
+  "收入": [
+    { name: "T4", price: 100 },
+    { name: "T5", price: 25 },
+    { name: "T3", price: 25 },
+    { name: "T5008", price: 25 },
+    { name: "T4E/RC210/T4A(CPP)/T4A(OAS)", price: 25 },
+    { name: "T4A/T4RSP", price: 50 },
+    { name: "T5013", price: 50 },
+    { name: "T4PS", price: 50 },
+    { name: "S3", price: 50 },
+    { name: "Foreign Income", price: 50 },
+    { name: "Foreign Tax Paid", price: 50 },
+    { name: "T1135", price: 100 },
+    { name: "T1134", price: 250 }
+  ],
+  "出租房": [
+    { name: "T776", price: 100 },
+    { name: "S3/S3P/T2091", price: 50 }
+  ],
+  "自雇": [
+    { name: "T2125", price: 150 },
+    { name: "T2200", price: 150 },
+    { name: "HST", price: 100 }
+  ],
+  "抵扣": [
+    { name: "RRSP", price: 25 },
+    { name: "RRSP(HBP)", price: 25 },
+    { name: "Home Buyer Amount(First Home buyer)", price: 25 },
+    { name: "Professional or Union Dues/Support payment", price: 25 },
+    { name: "Child Care Expenses", price: 25 },
+    { name: "Carrying Charges and Interest Expenses", price: 25 },
+    { name: "FHSA", price: 25 },
+    { name: "Medical Expenses", price: 50 },
+    { name: "Donation/Digital Subscription", price: 25 },
+    { name: "Moving Expenses(Simplified)", price: 50 },
+    { name: "Moving Expenses(Detailed)", price: 100 },
+    { name: "Student loan/Tuition fee transfer interest", price: 25 },
+    { name: "Renovation Credit", price: 25 },
+    { name: "Multigenerational home renovation tax credit", price: 25 },
+    { name: "T2202", price: 50 },
+    { name: "T4A", price: 50 },
+    { name: "ONBEN", price: 50 }
+  ]
+};
+
+const categoryNames = Object.keys(categories);
+let quantities = {};
+let searchTerm = "";
+let activeCategory = categoryNames[0];
+let isReceiptMode = false;
+
+function money(value) {
+  return "$" + value.toFixed(2);
+}
+
+function getKey(category, item) {
+  return category + "::" + item.name;
+}
+
+function getQty(category, item) {
+  return quantities[getKey(category, item)] || 0;
+}
+
+function setQty(category, item, nextQty) {
+  const key = getKey(category, item);
+  const qty = Math.max(0, Number(nextQty) || 0);
+  if (qty === 0) {
+    delete quantities[key];
+  } else {
+    quantities[key] = qty;
+  }
+  render();
+}
+
+function calculateTotals() {
+  let count = 0;
+  let subtotal = 0;
+  for (const [category, items] of Object.entries(categories)) {
+    items.forEach(item => {
+      const qty = getQty(category, item);
+      count += qty;
+      subtotal += qty * item.price;
+    });
+  }
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + tax;
+  return { count, subtotal, tax, total };
+}
+
+function getFilteredItems(category) {
+  const term = searchTerm.trim().toLowerCase();
+  const items = categories[category] || [];
+  if (!term) return items;
+  return items.filter(item => item.name.toLowerCase().includes(term));
+}
+
+function ensureVisibleCategory() {
+  if (getFilteredItems(activeCategory).length > 0) return;
+  const next = categoryNames.find(category => getFilteredItems(category).length > 0);
+  if (next) activeCategory = next;
+}
+
+function renderQtyControl(category, item) {
+  const qty = getQty(category, item);
+  const wrap = document.createElement("div");
+  wrap.className = "qty-control";
+
+  const minus = document.createElement("button");
+  minus.type = "button";
+  minus.textContent = "-";
+  minus.disabled = qty === 0;
+  minus.setAttribute("aria-label", item.name + " 减少一张");
+  minus.onclick = () => setQty(category, item, qty - 1);
+
+  const value = document.createElement("span");
+  value.textContent = qty;
+
+  const plus = document.createElement("button");
+  plus.type = "button";
+  plus.textContent = "+";
+  plus.setAttribute("aria-label", item.name + " 增加一张");
+  plus.onclick = () => setQty(category, item, qty + 1);
+
+  wrap.appendChild(minus);
+  wrap.appendChild(value);
+  wrap.appendChild(plus);
+  return wrap;
+}
+
+function render() {
+  ensureVisibleCategory();
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+
+  if (isReceiptMode) {
+    renderReceipt(app);
+    renderSummary(app);
+    return;
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "app-shell";
+
+  shell.appendChild(renderTopBar());
+  shell.appendChild(renderDesktop());
+  shell.appendChild(renderMobile());
+  app.appendChild(shell);
+  renderSummary(app);
+}
+
+function renderTopBar() {
+  const topBar = document.createElement("div");
+  topBar.className = "top-bar";
+
+  const searchInput = document.createElement("input");
+  searchInput.className = "search-box";
+  searchInput.type = "search";
+  searchInput.placeholder = "搜索";
+  searchInput.value = searchTerm;
+  searchInput.oninput = (event) => {
+    searchTerm = event.target.value;
+    render();
+  };
+
+  const clearBtn = document.createElement("button");
+  clearBtn.className = "action-btn secondary";
+  clearBtn.type = "button";
+  clearBtn.textContent = "清空数量";
+  clearBtn.onclick = () => {
+    quantities = {};
+    render();
+  };
+
+  const receiptBtn = document.createElement("button");
+  receiptBtn.className = "action-btn";
+  receiptBtn.type = "button";
+  receiptBtn.textContent = "查看明细";
+  receiptBtn.onclick = () => {
+    isReceiptMode = true;
+    render();
+  };
+
+  topBar.appendChild(searchInput);
+  topBar.appendChild(clearBtn);
+  topBar.appendChild(receiptBtn);
+  return topBar;
+}
+
+function renderDesktop() {
+  const grid = document.createElement("div");
+  grid.className = "content-grid";
+
+  const nav = document.createElement("div");
+  nav.className = "category-panel";
+  categoryNames.forEach(category => {
+    const btn = document.createElement("button");
+    btn.className = "category-btn" + (category === activeCategory ? " active" : "");
+    btn.type = "button";
+    btn.textContent = category;
+    btn.onclick = () => {
+      activeCategory = category;
+      render();
+    };
+    nav.appendChild(btn);
+  });
+
+  const list = document.createElement("div");
+  list.className = "desktop-list";
+
+  let hasItems = false;
+  const desktopCategories = searchTerm.trim() ? categoryNames : [activeCategory];
+  desktopCategories.forEach(category => {
+    const items = getFilteredItems(category);
+    if (items.length === 0) return;
+    hasItems = true;
+
+    const section = document.createElement("section");
+    section.className = "category-section";
+
+    const title = document.createElement("div");
+    title.className = "category-title";
+    title.innerHTML = `<span>${category}</span><span>${items.length} 项</span>`;
+    section.appendChild(title);
+
+    const table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>项目</th><th class=\"price-col\">单价</th><th class=\"qty-col\">张数</th><th class=\"subtotal-col\">小计</th></tr></thead>";
+    const tbody = document.createElement("tbody");
+
+    items.forEach(item => {
+      const qty = getQty(category, item);
+      const tr = document.createElement("tr");
+
+      const name = document.createElement("td");
+      name.textContent = item.name;
+
+      const price = document.createElement("td");
+      price.className = "price-col";
+      price.textContent = money(item.price);
+
+      const qtyCell = document.createElement("td");
+      qtyCell.className = "qty-col";
+      qtyCell.appendChild(renderQtyControl(category, item));
+
+      const subtotal = document.createElement("td");
+      subtotal.className = "subtotal-col";
+      subtotal.textContent = money(qty * item.price);
+
+      tr.appendChild(name);
+      tr.appendChild(price);
+      tr.appendChild(qtyCell);
+      tr.appendChild(subtotal);
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    section.appendChild(table);
+    list.appendChild(section);
+  });
+
+  if (!hasItems) {
+    const empty = document.createElement("div");
+    empty.className = "category-section empty-state";
+    empty.textContent = "没有找到匹配的项目";
+    list.appendChild(empty);
+  }
+
+  grid.appendChild(nav);
+  grid.appendChild(list);
+  return grid;
+}
+
+function renderMobile() {
+  const layout = document.createElement("div");
+  layout.className = "mobile-layout";
+
+  const tabs = document.createElement("div");
+  tabs.className = "mobile-tabs";
+
+  categoryNames.forEach(category => {
+    const items = getFilteredItems(category);
+    if (searchTerm.trim() && items.length === 0) return;
+
+    const btn = document.createElement("button");
+    btn.className = "mobile-tab" + (category === activeCategory ? " active" : "");
+    btn.type = "button";
+    btn.textContent = category;
+    btn.onclick = () => {
+      activeCategory = category;
+      render();
+    };
+    tabs.appendChild(btn);
+  });
+
+  const itemsWrap = document.createElement("div");
+  itemsWrap.className = "mobile-items";
+  const items = getFilteredItems(activeCategory);
+
+  if (items.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "没有找到匹配的项目";
+    itemsWrap.appendChild(empty);
+  } else {
+    items.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "mobile-item";
+
+      const info = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "item-name";
+      name.textContent = item.name;
+
+      const price = document.createElement("div");
+      price.className = "item-price";
+      price.textContent = money(item.price);
+
+      info.appendChild(name);
+      info.appendChild(price);
+      row.appendChild(info);
+      row.appendChild(renderQtyControl(activeCategory, item));
+      itemsWrap.appendChild(row);
+    });
+  }
+
+  layout.appendChild(tabs);
+  layout.appendChild(itemsWrap);
+  return layout;
+}
+
+function renderSummary(app) {
+  const totals = calculateTotals();
+  const bar = document.createElement("div");
+  bar.className = "summary-bar";
+
+  const inner = document.createElement("div");
+  inner.className = "summary-inner";
+
+  const main = document.createElement("div");
+  main.className = "summary-main";
+  main.innerHTML = `<span class="summary-total">总金额 ${money(totals.total)}</span><span class="summary-tax">已含 13% 税，税前 ${money(totals.subtotal)}，税 ${money(totals.tax)}，共 ${totals.count} 张</span>`;
+
+  const clearBtn = document.createElement("button");
+  clearBtn.className = "action-btn secondary";
+  clearBtn.type = "button";
+  clearBtn.textContent = "清空";
+  clearBtn.onclick = () => {
+    quantities = {};
+    render();
+  };
+
+  const receiptBtn = document.createElement("button");
+  receiptBtn.className = "action-btn";
+  receiptBtn.type = "button";
+  receiptBtn.textContent = isReceiptMode ? "返回选择" : "查看明细";
+  receiptBtn.onclick = () => {
+    isReceiptMode = !isReceiptMode;
+    render();
+  };
+
+  inner.appendChild(main);
+  inner.appendChild(clearBtn);
+  inner.appendChild(receiptBtn);
+  bar.appendChild(inner);
+  app.appendChild(bar);
+}
+
+function renderReceipt(app) {
+  const receipt = document.createElement("div");
+  receipt.className = "receipt";
+
+  const head = document.createElement("div");
+  head.className = "receipt-head";
+
+  const title = document.createElement("div");
+  title.className = "receipt-title";
+  title.textContent = "明细";
+
+  const back = document.createElement("button");
+  back.className = "action-btn secondary";
+  back.type = "button";
+  back.textContent = "返回选择";
+  back.onclick = () => {
+    isReceiptMode = false;
+    render();
+  };
+
+  head.appendChild(title);
+  head.appendChild(back);
+  receipt.appendChild(head);
+
+  const body = document.createElement("div");
+  body.className = "receipt-body";
+
+  let hasItems = false;
+  for (const [category, items] of Object.entries(categories)) {
+    items.forEach(item => {
+      const qty = getQty(category, item);
+      if (qty <= 0) return;
+      hasItems = true;
+
+      const row = document.createElement("div");
+      row.className = "receipt-row";
+      row.innerHTML = `<span>${category} - ${item.name}</span><strong>x ${qty}</strong><span>${money(qty * item.price)}</span>`;
+      body.appendChild(row);
+    });
+  }
+
+  if (!hasItems) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "还没有选择项目";
+    body.appendChild(empty);
+  }
+
+  receipt.appendChild(body);
+  app.appendChild(receipt);
+}
+
+render();
+</script>
+</body>
+</html>
